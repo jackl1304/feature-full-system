@@ -23,7 +23,7 @@ class Article(SQLModel, table=True):
     """
     id: Optional[int] = Field(default=None, primary_key=True)
     title: str
-    link: str = Field(index=True)             # unique entfernt, index bleibt
+    link: str = Field(index=True)       # nur index, kein unique
     published: datetime
     source: str
     is_sent: bool = Field(default=False)
@@ -36,7 +36,7 @@ def init_db() -> None:
 
 def get_session() -> Generator[Session, None, None]:
     """
-    Liefert eine DB-Session (Sync) für FastAPI-Dependencies.
+    Liefert eine DB-Session für FastAPI-Dependencies.
     """
     session = Session(engine)
     try:
@@ -46,7 +46,7 @@ def get_session() -> Generator[Session, None, None]:
 
 def save_articles(items: List[Dict]) -> None:
     """
-    Speichert neue Artikel; überspringt bereits vorhandene Links.
+    Speichert neue Artikel, überspringt bereits vorhandene Links.
     """
     with Session(engine) as session:
         for item in items:
@@ -66,7 +66,7 @@ def save_articles(items: List[Dict]) -> None:
 
 def get_unsent_articles() -> List[Dict]:
     """
-    Gibt alle noch nicht versendeten Artikel als Liste von Dicts zurück.
+    Liest alle Artikel, die noch nicht versendet wurden.
     """
     with Session(engine) as session:
         articles = session.exec(
@@ -76,7 +76,7 @@ def get_unsent_articles() -> List[Dict]:
 
 def mark_as_sent(ids: List[int]) -> None:
     """
-    Markiert die Artikel mit den gegebenen IDs als versendet.
+    Markiert Artikel als versendet anhand ihrer IDs.
     """
     with Session(engine) as session:
         session.exec(
