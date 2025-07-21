@@ -1,0 +1,44 @@
+name: AI Korrekturleser
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  proofread:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code auschecken
+        uses: actions/checkout@v4
+
+      - name: Python einrichten
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Skript-Abhängigkeiten installieren
+        run: pip install requests
+
+      - name: Korrekturlese-Skript ausführen
+        id: proofread
+        run: |
+          PR_BODY=$(echo "${{ github.event.pull_request.body }}" | sed 's/"/\\"/g' | sed "s/'/\\'/g")
+          PR_TITLE=$(echo "${{ github.event.pull_request.title }}" | sed 's/"/\\"/g' | sed "s/'/\\'/g")
+          RESPONSE=$(curl -s -H 'Content-Type: application/json' \
+            -d "{\"contents\":[{\"parts\":[{\"text\": \"Bitte korrigiere den folgenden Newsletter-Entwurf auf Grammatik, Rechtschreibung und Stil. Gib nur den korrigierten Text zurück, ohne eine Einleitung. Originaltitel: ${PR_TITLE}. Originaltext: ${PR_BODY}\"}]}]}" \
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${{ secrets.GOOGLE_AI_API_KEY }}")
+          CORRECTED_TEXT=$(echo $RESPONSE | python3 -c "import sys, json; print(json.load(sys.stdin)['candidates'][0]['content']['parts'][0]['text'])")
+          echo "corrected_text<<EOF" >> $GITHUB_OUTPUT
+          echo "$CORRECTED_TEXT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Korrektur als Kommentar posten
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `### Korrekturvorschlag von deiner KI ✨\n\n---\n\n${{ steps.proofread.outputs.corrected_text }}`
+            })
