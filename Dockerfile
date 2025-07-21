@@ -14,7 +14,7 @@ RUN pip install poetry \
 
 # Projekt-Metadaten kopieren und Abhängigkeiten installieren
 COPY pyproject.toml poetry.lock* /app/
-RUN poetry install --no-dev --no-interaction
+RUN poetry install --without dev --no-interaction
 
 # Restlichen Code kopieren
 COPY . /app
