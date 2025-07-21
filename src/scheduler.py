@@ -7,6 +7,7 @@ from datetime import datetime
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from dotenv import load_dotenv
 
+# Relative Imports innerhalb des src-Pakets
 from .fetcher.manager import load_plugins
 from .models.db import init_db, save_articles, get_unsent_articles, mark_as_sent
 from .renderer.email import render_newsletter
@@ -22,7 +23,6 @@ async def job_poll_and_send():
         plugins = load_plugins()
         logging.info(f"Loaded {len(plugins)} plugins.")
         items = []
-
         for plugin in plugins:
             try:
                 fetched = await plugin.fetch()
@@ -54,12 +54,10 @@ async def start_scheduler():
     load_dotenv()
     init_db()
     logging.info("Database initialized (scheduler).")
-
     sched = AsyncIOScheduler()
     interval = int(os.getenv("POLL_INTERVAL_MINUTES", 15))
     sched.add_job(job_poll_and_send, "interval", minutes=interval, next_run_time=datetime.now())
 
-    # Weekly Cron
     cron = os.getenv("WEEKLY_CRON", "0 8 * * MON").split()
     sched.add_job(
         job_poll_and_send,
