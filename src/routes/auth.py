@@ -1,6 +1,6 @@
 # src/routes/auth.py
 
-from fastapi import APIRouter, Depends, HTTPException, Form, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from passlib.context import CryptContext
@@ -24,10 +24,14 @@ async def form_register(request: Request):
     return templates.TemplateResponse("register.html", {"request": request})
 
 @router.post("/register")
-async def register(email: str = Form(...), password: str = Form(...), session = Depends(get_session)):
+async def register(
+    email: str = Form(...),
+    password: str = Form(...),
+    session = Depends(get_session)
+):
     exists = session.exec(select(User).where(User.email == email)).first()
     if exists:
-        raise HTTPException(400, "E-Mail bereits registriert")
+        raise HTTPException(status_code=400, detail="E-Mail bereits registriert")
     user = User(email=email, password_hash=hash_pw(password))
     session.add(user); session.commit(); session.refresh(user)
     return RedirectResponse("/auth/login", status_code=302)
@@ -37,7 +41,11 @@ async def form_login(request: Request):
     return templates.TemplateResponse("login.html", {"request": request})
 
 @router.post("/token")
-async def login_for_token(email: str = Form(...), password: str = Form(...), session = Depends(get_session)):
+async def login_for_token(
+    email: str = Form(...),
+    password: str = Form(...),
+    session = Depends(get_session)
+):
     user = session.exec(select(User).where(User.email == email)).first()
     if not user or not verify_pw(password, user.password_hash):
         raise HTTPException(status_code=401, detail="Falsche Anmeldedaten")
