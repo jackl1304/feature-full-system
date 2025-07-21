@@ -1,11 +1,13 @@
+# src/dependencies.py
+
 import os
 from datetime import datetime, timedelta
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from sqlmodel import Session, select
-from models.user import User
-from models.db import get_session
+from src.models.user import User
+from src.models.db import get_session
 
 SECRET_KEY = os.getenv("JWT_SECRET", "changeme")
 ALGORITHM = "HS256"
@@ -40,5 +42,6 @@ def get_current_user(token: str = Depends(oauth2_scheme), session: Session = Dep
 
 def get_current_admin(user: User = Depends(get_current_user)) -> User:
     if not user.is_admin:
+        from fastapi import HTTPException
         raise HTTPException(status_code=403, detail="Admin-Rechte erforderlich")
     return user
