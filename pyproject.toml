@@ -19,6 +19,8 @@ passlib = "^1.7"
 python-jose = "^3.3"
 playwright = "^1.37"
 uvloop = "^0.17"
+beautifulsoup4 = "^4.12"
+lxml = "^4.9"
 
 [tool.poetry.dev-dependencies]
 pytest = "^7.0"
