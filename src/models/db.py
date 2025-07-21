@@ -10,7 +10,7 @@ from sqlalchemy import update
 # Datenbank-URL
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./data/news.db")
 
-# Engine und Session-Factory
+# Engine konfigurieren
 engine = create_engine(
     DATABASE_URL,
     echo=False,
@@ -18,22 +18,25 @@ engine = create_engine(
 )
 
 class Article(SQLModel, table=True):
+    """
+    Repräsentiert einen News-Artikel.
+    """
     id: Optional[int] = Field(default=None, primary_key=True)
     title: str
-    link: str = Field(unique=True, index=True)
+    link: str = Field(index=True)             # unique entfernt, index bleibt
     published: datetime
     source: str
     is_sent: bool = Field(default=False)
 
 def init_db() -> None:
     """
-    Legt Datenbanktabellen an.
+    Legt alle Tabellen an, falls sie noch nicht existieren.
     """
     SQLModel.metadata.create_all(engine)
 
 def get_session() -> Generator[Session, None, None]:
     """
-    Liefert eine DB-Session (Sync).
+    Liefert eine DB-Session (Sync) für FastAPI-Dependencies.
     """
     session = Session(engine)
     try:
@@ -43,7 +46,7 @@ def get_session() -> Generator[Session, None, None]:
 
 def save_articles(items: List[Dict]) -> None:
     """
-    Speichert neue Artikel: überspringt bereits existierende Links.
+    Speichert neue Artikel; überspringt bereits vorhandene Links.
     """
     with Session(engine) as session:
         for item in items:
@@ -63,7 +66,7 @@ def save_articles(items: List[Dict]) -> None:
 
 def get_unsent_articles() -> List[Dict]:
     """
-    Liest alle Artikel mit is_sent=False.
+    Gibt alle noch nicht versendeten Artikel als Liste von Dicts zurück.
     """
     with Session(engine) as session:
         articles = session.exec(
@@ -73,7 +76,7 @@ def get_unsent_articles() -> List[Dict]:
 
 def mark_as_sent(ids: List[int]) -> None:
     """
-    Markiert übergebene Artikel-IDs als versendet.
+    Markiert die Artikel mit den gegebenen IDs als versendet.
     """
     with Session(engine) as session:
         session.exec(
