@@ -67,4 +67,24 @@ try:
 
     if "candidates" in data and data["candidates"]:
         # Sicherer Zugriff auf den Text, um Fehler zu vermeiden
-        text_
+        text_parts = data["candidates"][0].get("content", {}).get("parts", [{}])
+        corrected_text = text_parts[0].get("text", "")
+        
+        # Korrekte Methode, um mehrzeilige Strings an GITHUB_OUTPUT zu übergeben
+        with open(os.environ['GITHUB_OUTPUT'], 'a') as fh:
+            delimiter = "EOF_CORRECTED_TEXT_DELIMITER"
+            print(f'corrected_text<<{delimiter}', file=fh)
+            print(corrected_text, file=fh)
+            print(delimiter, file=fh)
+    else:
+        print("Fehler: Die API-Antwort enthielt keine gültigen 'candidates'.")
+        print("Vollständige API-Antwort:", json.dumps(data))
+        sys.exit(1)
+
+except requests.exceptions.RequestException as e:
+    print(f"Fehler bei der API-Anfrage: {e}")
+    sys.exit(1)
+except (KeyError, IndexError, TypeError) as e:
+    print(f"Fehler beim Verarbeiten der API-Antwort: {e}")
+    print("Vollständige API-Antwort:", json.dumps(data))
+    sys.exit(1)
