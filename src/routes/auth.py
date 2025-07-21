@@ -1,11 +1,16 @@
+# src/routes/auth.py
+
 from fastapi import APIRouter, Depends, HTTPException, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.templating import Jinja2Templates
 from passlib.context import CryptContext
 from sqlmodel import select
-from dependencies import create_access_token, get_session
-from models.user import User, Subscription
+from src.dependencies import create_access_token, get_session
+from src.models.user import User
 
+templates = Jinja2Templates(directory="templates")
 pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 def hash_pw(pw: str) -> str:
