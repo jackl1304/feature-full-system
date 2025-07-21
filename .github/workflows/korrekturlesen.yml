@@ -31,17 +31,13 @@ jobs:
         run: python scripts/proofread.py
 
       - name: Korrektur als Kommentar posten
+        if: success() && steps.proofread.outputs.corrected_text != ''
         uses: actions/github-script@v7
         with:
           script: |
-            const correctedText = `${{ steps.proofread.outputs.corrected_text }}`;
-            if (correctedText && correctedText.trim() !== '') {
-              github.rest.issues.createComment({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body: `### Korrekturvorschlag von deiner KI ✨\n\n---\n\n${correctedText}`
-              });
-            } else {
-              console.log('Kein korrigierter Text zum Posten vorhanden.');
-            }
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `### Korrekturvorschlag von deiner KI ✨\n\n---\n\n${{ steps.proofread.outputs.corrected_text }}`
+            });
