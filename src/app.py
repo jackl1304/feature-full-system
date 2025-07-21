@@ -5,7 +5,7 @@ import asyncio
 import os
 
 from fastapi import FastAPI, Request, Depends
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from dotenv import load_dotenv
 
@@ -25,39 +25,38 @@ logging.basicConfig(
 # FastAPI-Instanz
 app = FastAPI()
 
-# Jinja2-Templates
+# Templates aus dem Ordner /app/templates laden
 templates = Jinja2Templates(directory="templates")
 
-# Router einbinden
+# Alle Router einbinden
 app.include_router(auth_router)
 app.include_router(admin_router)
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request, user=Depends(get_current_user)):
     """
-    Startseite – zeigt Template 'index.html' und meldet angemeldeten User.
+    Startseite mit angemeldetem User.
     """
     return templates.TemplateResponse("index.html", {
         "request": request,
         "user": user
     })
 
-@app.get("/health")
+@app.get("/health", response_class=JSONResponse)
 async def health():
     """
-    Health-Check für Render oder Uptime-Monitoring.
+    Health-Check für Uptime-Services.
     """
     return {"status": "ok"}
 
 @app.on_event("startup")
 async def on_startup():
     """
-    Startup-Hook: .env laden, DB initialisieren und Scheduler starten.
+    Startup: .env laden, DB initialisieren, Scheduler starten.
     """
     load_dotenv()
-    # DB-Tabellen anlegen
     init_db()
     logging.info("Database initialized.")
-    # Scheduler im Hintergrund starten
+    # Scheduler als Hintergrund-Task starten
     asyncio.create_task(start_scheduler())
-    logging.info("Scheduler task created.")
+    logging.info("Scheduler started.")
