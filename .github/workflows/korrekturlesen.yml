@@ -1,5 +1,9 @@
 name: AI Korrekturleser
 
+# Dieser neue Abschnitt erteilt die notwendigen Berechtigungen
+permissions:
+  pull-requests: write
+
 on:
   pull_request:
     types: [opened, synchronize]
