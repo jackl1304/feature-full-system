@@ -1,12 +1,11 @@
 name: AI Korrekturleser
 
-# Dieser neue Abschnitt erteilt die notwendigen Berechtigungen
 permissions:
   pull-requests: write
 
 on:
   pull_request:
-    types: [opened, synchronize]
+    types: [opened, edited, synchronize]
 
 jobs:
   proofread:
@@ -19,49 +18,30 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-      
+
+      - name: Python-Abhängigkeiten installieren
+        run: pip install requests
+
       - name: Korrekturlese-Skript ausführen
         id: proofread
-        run: |
-          PR_BODY=$(echo "${{ github.event.pull_request.body }}" | sed 's/"/\\"/g' | sed "s/'/\\'/g")
-          PR_TITLE=$(echo "${{ github.event.pull_request.title }}" | sed 's/"/\\"/g' | sed "s/'/\\'/g")
-          
-          # Führe den API-Aufruf aus und speichere die Antwort
-          RESPONSE=$(curl -s -H 'Content-Type: application/json' \
-            -d "{\"contents\":[{\"parts\":[{\"text\": \"Bitte korrigiere den folgenden Newsletter-Entwurf auf Grammatik, Rechtschreibung und Stil. Gib nur den korrigierten Text zurück, ohne eine Einleitung. Originaltitel: ${PR_TITLE}. Originaltext: ${PR_BODY}\"}]}]}" \
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${{ secrets.GOOGLE_AI_API_KEY }}")
-            
-          # WICHTIG: Gib die komplette Antwort von der API zur Fehlersuche aus
-          echo "API Response:"
-          echo "${RESPONSE}"
-          
-          # Versuche, den Text zu extrahieren
-          CORRECTED_TEXT=$(echo "${RESPONSE}" | python3 -c "import sys, json; data = json.load(sys.stdin); print(data.get('candidates', [{}])[0].get('content', {}).get('parts', [{}])[0].get('text', 'Fehler: Konnte keine Korrektur in der API-Antwort finden.'))")
-          
-          echo "corrected_text<<EOF" >> $GITHUB_OUTPUT
-          echo "$CORRECTED_TEXT" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+        env:
+          GEMINI_API_KEY: ${{ secrets.GOOGLE_AI_API_KEY }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: python scripts/proofread.py
 
       - name: Korrektur als Kommentar posten
-        if: success()
         uses: actions/github-script@v7
         with:
           script: |
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: `### Korrekturvorschlag von deiner KI ✨\n\n---\n\n${{ steps.proofread.outputs.corrected_text }}`
-            })
-
-      - name: Fehler als Kommentar posten
-        if: failure()
-        uses: actions/github-script@v7
-        with:
-          script: |
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: `### KI-Lektor ist fehlgeschlagen 😞\n\nDer Prozess wurde mit einem Fehler beendet. Bitte überprüfe die [Actions Logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) für weitere Details.`
-            })
+            const correctedText = `${{ steps.proofread.outputs.corrected_text }}`;
+            if (correctedText && correctedText.trim() !== '') {
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: `### Korrekturvorschlag von deiner KI ✨\n\n---\n\n${correctedText}`
+              });
+            } else {
+              console.log('Kein korrigierter Text zum Posten vorhanden.');
+            }
