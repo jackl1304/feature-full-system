@@ -7,10 +7,10 @@ from datetime import datetime
 from sqlmodel import SQLModel, Field, create_engine, Session, select
 from sqlalchemy import update
 
-# Datenbank-URL aus Umgebungsvariable oder Default
+# Datenbank-URL
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./data/news.db")
 
-# Engine konfigurieren
+# Engine und Session-Factory
 engine = create_engine(
     DATABASE_URL,
     echo=False,
@@ -18,27 +18,22 @@ engine = create_engine(
 )
 
 class Article(SQLModel, table=True):
-    """
-    Repräsentiert einen News-Artikel.
-    """
     id: Optional[int] = Field(default=None, primary_key=True)
     title: str
-    link: str = Field(index=True, unique=True)
+    link: str = Field(unique=True, index=True)
     published: datetime
     source: str
     is_sent: bool = Field(default=False)
 
 def init_db() -> None:
     """
-    Legt alle Tabellen an, falls sie noch nicht existieren.
+    Legt Datenbanktabellen an.
     """
-    from .user import User, Subscription
-    from .log import FetchLog
     SQLModel.metadata.create_all(engine)
 
 def get_session() -> Generator[Session, None, None]:
     """
-    Liefert eine synchronisierte DB-Session (für FastAPI-Dependencies).
+    Liefert eine DB-Session (Sync).
     """
     session = Session(engine)
     try:
@@ -46,12 +41,11 @@ def get_session() -> Generator[Session, None, None]:
     finally:
         session.close()
 
-async def save_articles(items: List[Dict]) -> None:
+def save_articles(items: List[Dict]) -> None:
     """
-    Speichert neue Artikel; überspringt bereits vorhandene (unique link).
+    Speichert neue Artikel: überspringt bereits existierende Links.
     """
-    session = Session(engine)
-    try:
+    with Session(engine) as session:
         for item in items:
             exists = session.exec(
                 select(Article).where(Article.link == item["link"])
@@ -66,31 +60,23 @@ async def save_articles(items: List[Dict]) -> None:
             )
             session.add(article)
         session.commit()
-    finally:
-        session.close()
 
-async def get_unsent_articles() -> List[Dict]:
+def get_unsent_articles() -> List[Dict]:
     """
-    Gibt alle noch nicht versendeten Artikel als Liste von Dicts zurück.
+    Liest alle Artikel mit is_sent=False.
     """
-    session = Session(engine)
-    try:
+    with Session(engine) as session:
         articles = session.exec(
             select(Article).where(Article.is_sent == False)
         ).all()
         return [article.dict() for article in articles]
-    finally:
-        session.close()
 
-async def mark_as_sent(ids: List[int]) -> None:
+def mark_as_sent(ids: List[int]) -> None:
     """
-    Markiert die Artikel mit den gegebenen IDs als versendet.
+    Markiert übergebene Artikel-IDs als versendet.
     """
-    session = Session(engine)
-    try:
+    with Session(engine) as session:
         session.exec(
             update(Article).where(Article.id.in_(ids)).values(is_sent=True)
         )
         session.commit()
-    finally:
-        session.close()
